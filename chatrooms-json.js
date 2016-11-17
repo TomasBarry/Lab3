@@ -7,7 +7,8 @@
  *         members: [
  *             {
  *                 join_id: int,
- *                 client_name: string
+ *                 client_name: string,
+ *                 socket: net.socket
  *             }
  *         ]
  *     }
