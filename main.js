@@ -19,7 +19,7 @@ var server = net.createServer((socket) => {
 
 	socket.on('data', (data) => {
 		logger.log('info', 'Socket(' + socket.key + ') data: ' + data.toString());
-		handler.handleData(data.toString());
+		handler.handleData(socket, data.toString());
 	});
 	socket.on('close', () => {
 		delete clients[socket.key];
