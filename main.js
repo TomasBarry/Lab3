@@ -37,5 +37,5 @@ server.on('error', (err) => {
 // Start server to listen on a specific port
 server.listen(8000, () => {
 	logger.log('info', 'opened server on ' + util.inspect(server.address()));
-	handler.setupHandler(server.address().toString(), 8000);
+	handler.setupHandler('10.62.0.127', 8000);
 });
