@@ -1,16 +1,20 @@
 var net = require('net');
+var handler = require('./request-handler.js');
+var logger = require('./logger.js');
 
 var server = net.createServer((socket) => {
+	logger.log('info', 'New socket connection');
 	socket.on('data', (data) => {
-		console.log(data.toString());
+		logger.log('info', data.toString());
+		handler.handleData(data.toString());
 	});	
 });
 
 server.on('error', (err) => {
 	// handle errors here
-	console.log('server error');
+	logger.log('err', 'server error');
 });
 // grab a random port.
 server.listen(8000, () => {
-	console.log('opened server on', server.address());
+	logger.log('info', 'opened server on ' + server.address());
 });
