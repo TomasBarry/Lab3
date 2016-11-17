@@ -1,6 +1,7 @@
 // Import the chatroom object and custom logger
 var chatrooms = require('./chatrooms-json.js');
 const logger = require('./logger.js');
+const util = require('util');
 
 
 var serverAddress = "";
@@ -9,12 +10,13 @@ var uniqueUserIdentifier = 0;
 var uniqueRoomIdentifier = 0;
 var roomToRefLookup = {};
 
+
 function parseValue(string) {
-	return string.substring(string.indexOf(':') + 2, string.length);
+	return string.substring(string.indexOf(':') + 1, string.length);
 };
 
 
-function joinChatroom(chatroomName, clientName) {
+function joinChatroom(chatroomName, clientName, socket) {
 	let roomReference = roomToRefLookup[chatroomName];
 	if (!roomReference) {
 		roomToRefLookup[chatroomName] = uniqueRoomIdentifier++;
@@ -26,9 +28,17 @@ function joinChatroom(chatroomName, clientName) {
 		room = chatrooms[roomReference];  
 		room.members = [];
 	}
-	room.members.push({ 'join_id': uniqueUserIdentifier, 'client_name': clientName });
-	logger.log('info', 'After Joining: \n' + JSON.stringify(chatrooms));
+	room.members.push({ 'join_id': uniqueUserIdentifier, 'client_name': clientName, 'client_socket': socket });
+	logger.log('info', 'After Joining: \n' + util.inspect(chatrooms));
 	uniqueUserIdentifier++;
+};
+
+
+function writeMessageToChatroom(roomRef, clientName, message) {
+	let room = chatrooms[roomRef];
+	room.members.forEach(function(member) {
+		member.client_socket.write(message);
+	});
 };
 
 
@@ -36,12 +46,12 @@ function joinChatroom(chatroomName, clientName) {
 const handler = {
 	
 	setupHandler: function(address, port) {
+		logger.log('info', 'Address: ' + address + '\nPort: ' + port);
 		serverAddress = address;
 		serverPort = port;
 	},
 
 	handleData: function(socket, data) {
-		let responseText = '';
 		/** 
 		 * Request:
 		 * JOIN_CHATROOM: [chatroom name]
@@ -54,15 +64,22 @@ const handler = {
 		 * PORT: [server port]
 		 * ROOM_REF: [integer that uniquely identifies chat room on server]
 		 * JOIN_ID: [integer that uniquely identifies client joining]
-		 */
+		 */ 
 		if (data.indexOf('JOIN_CHATROOM') === 0) {
 			logger.log('info', socket.key + ' is attempting to join a chatroom');
 			let requestLines = data.split('\n');
-			logger.log('info', requestLines[0]);
-			logger.log('info', requestLines[3]);
 			let chatroomName = parseValue(requestLines[0]);
 			let clientName = parseValue(requestLines[3]);
-			joinChatroom(chatroomName, clientName);	
+			logger.log('info', 'Chat Room: ' + chatroomName + '\nClient: ' + clientName);
+			joinChatroom(chatroomName, clientName, socket);	
+			socket.write(
+				'JOINED_CHATROOM: ' + chatroomName + '\n' +
+				'SERVER_IP: ' + serverAddress + '\n' +
+				'PORT: ' + serverPort + '\n' +
+				'ROOM_REF: ' + roomToRefLookup[chatroomName] + '\n' +
+				'JOIN_ID: ' + (uniqueUserIdentifier - 1) + '\n'
+			);
+			writeMessageToChatroom(roomToRefLookup[chatroomName], clientName, 'New member: ' + clientName + '\n\n');
 		}
 		
 		else if (data.indexOf('LEAVE_CHATROOM') === 0) {
@@ -76,8 +93,12 @@ const handler = {
 		}
 		else if (data.indexOf('HELO') === 0) {
 			logger.log('info', socket.key + ' is attempting to say HELO');   
-			responseText = data + 'IP:' + serverAddress + '\nPort:' + serverPort + '\nStudentID:13321218\n';
-			socket.write(responseText);
+			socket.write(
+				data + 
+				'IP:' + serverAddress + 
+				'\nPort:' + serverPort + 
+				'\nStudentID:13321218\n'
+			);
 		}
 		else if (data.indexOf('KILL_SERVICE') === 0) {
 			logger.log('info', socket.key + ' is attempting to kill me');   
@@ -85,6 +106,7 @@ const handler = {
 		}
 		else {
 			logger.log('warn', 'Unknown command');
+			socket.write('dank');
 		}
 	}
 };
