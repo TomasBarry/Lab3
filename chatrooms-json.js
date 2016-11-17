@@ -5,7 +5,7 @@
  *     room: [
  *         {
  *             room_id: int,  // unique identifier for the room
- *             messages: [string] // in the form "Timestamp - client_name: <message text>"
+ *             messages: [string] // in the form "(Room_ref) Timestamp - client_name: <message text>"
  *             members: [
  *                 {
  *                     join_id: int,
