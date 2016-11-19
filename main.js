@@ -21,9 +21,13 @@ var server = net.createServer((socket) => {
 		logger.log('info', 'Socket(' + socket.key + ') data: ' + data.toString());
 		handler.handleData(socket, data.toString());
 	});
-	socket.on('close', () => {
+	socket.on('close', (had_error) => {
 		delete clients[socket.key];
-		logger.log('info', 'Deleted client. Clients: ' + Object.keys(clients).length);	
+		logger.log('info', 'Deleted client: ' + socket.key);
+		logger.log('info', 'Had error? ' + had_error);	
+	});
+	socket.on('error', (err) => {
+		logger.log('error', err);
 	});	
 });
 
