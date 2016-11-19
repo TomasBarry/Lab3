@@ -21,7 +21,21 @@ function leaveChatroom(socket, roomRef, joinID, clientName) {
 	let leaverIndex = room.members.indexOf({ 'join_id': joinID, 'client_name': clientName, 'client_socket': socket });
 	room.members.splice(leaverIndex, 1);
 	logger.log('info', 'After removing: ' + util.inspect(chatrooms));
-}
+};
+
+
+function clientChatrooms(clientName) {
+	let clientRooms = [];
+	for (var key in chatrooms) {
+		let chatroom = chatrooms[key];
+		chatroom.members.forEach(function(member) {
+			if (member.client_name === clientName) {
+				clientRooms.push({ 'room_ref': key, 'join_id': member.join_id });
+			}
+		});
+	}
+	return clientRooms;
+};
 
 
 function joinChatroom(chatroomName, clientName, socket) {
@@ -53,23 +67,6 @@ function writeMessageToChatroom(roomRef, message) {
 
 // This object will be exported. It handles all incoming requests to the server
 const handler = {
-	handleData: function(socket, data) { 
-		if (data.indexOf('DISCONNECT') === 0) {
-			logger.log('info', socket.key + ' is attempting to disconnect');
-		}
-		else if (data.indexOf('CHAT') === 0) {
-			logger.log('info', socket.key + ' is attempting to chat');
-			let requestLines = data.split('\n');
-			let roomRef = parseValue(requestLines[0]);
-			let clientName = parseValue(requestLines[2]);
-			let message = parseValue(requestLines[3]);
-			let response = 'CHAT:' + roomRef + '\n' +
-				'CLIENT_NAME:' + clientName + '\n' + 
-				'MESSAGE:' + message + '\n\n';
-			logger.log('info', response);
-			writeMessageToChatroom(roomRef, clientName, response);
-		}
-	},
 
 	helo: function(socket, message, serverAddress, serverPort, studentNumber) {
 		socket.write(message +
@@ -94,6 +91,17 @@ const handler = {
 				'MESSAGE:' + clientName + ' has joined this chatroom.\n\n');
 	},
 
+	chat: function(socket, message) {
+		let requestLines = message.split('\n');
+		let roomRef = parseValue(requestLines[0]);
+		let clientName = parseValue(requestLines[2]);
+		let chatMessage = parseValue(requestLines[3]);
+		writeMessageToChatroom(roomRef,
+				'CHAT:' + roomRef + '\n' +
+				'CLIENT_NAME:' + clientName + '\n' +
+				'MESSAGE:' + chatMessage + '\n\n'); 
+	},
+
 	leave_chatroom: function(socket, message) {
 		let requestLines = message.split('\n');
 		let roomRef = parseValue(requestLines[0]);
@@ -106,6 +114,20 @@ const handler = {
 				'CLIENT_NAME:' + clientName + '\n' +
 				'MESSAGE:' + clientName + ' has left this chatroom.\n\n');
 		leaveChatroom(socket, roomRef, joinID, clientName);
+	},
+
+	disconnect: function(socket, message) {
+		let requestLines = message.split('\n');
+		let clientName = parseValue(requestLines[2]);
+		let clientRooms = clientChatrooms(clientName);
+		clientRooms.forEach(function(room) {
+			writeMessageToChatroom(room.room_ref,
+					'CHAT:' + room.room_ref + '\n' +
+					'CLIENT_NAME:' + clientName + '\n' +
+					'MESSAGE:' + clientName + ' has left this chatroom.\n\n');
+		});
+		socket.end();
+		socket.destroy();
 	},
 
 	kill_service: function(socket) {

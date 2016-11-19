@@ -27,8 +27,14 @@ var server = net.createServer((socket) => {
 		else if (message.indexOf('JOIN_CHATROOM') === 0) {
 			handler.join_chatroom(socket, message, serverAddress, serverPort);
 		}
+		else if (message.indexOf('CHAT') === 0) {
+			handler.chat(socket, message);
+		}
 		else if (message.indexOf('LEAVE_CHATROOM') === 0) {
 			handler.leave_chatroom(socket, message);
+		}
+		else if (message.indexOf('DISCONNECT') === 0) {
+			handler.disconnect(socket, message);
 		}
 		else if (message.indexOf('KILL_SERVICE') === 0) {
 			handler.kill_service(socket);
