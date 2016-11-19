@@ -5,21 +5,37 @@ const logger = require('./logger.js');
 const util = require('util');
 
 
+const serverAddress = '10.62.0.117';
+const serverPort = '8000';
+const studentNumber = '13321218';
+
+
 // used to keep track of connected clients 
 var clients = {};
 
 
 // create the Node server and wait for socket connections
 var server = net.createServer((socket) => {
-	logger.log('info', 'New socket connection');
+	socket.key = socket.remoteAddress + ":" + socket.remotePort;	
 	
-	// store the client socket
-	socket.key = socket.remoteAddress + ":" + socket.remotePort;
-	clients[socket.key] = socket;
-
 	socket.on('data', (data) => {
-		logger.log('info', 'Socket(' + socket.key + ') data: ' + data.toString());
-		handler.handleData(socket, data.toString());
+		let message = data.toString();
+		logger.log('info', socket.key + ' - data: ' + message);
+		if (message.indexOf('HELO') === 0) {
+			handler.helo(socket, message, serverAddress, serverPort, studentNumber);
+		}
+		else if (message.indexOf('JOIN_CHATROOM') === 0) {
+			handler.join_chatroom(socket, message, serverAddress, serverPort);
+		}
+		else if (message.indexOf('LEAVE_CHATROOM') === 0) {
+			handler.leave_chatroom(socket);
+		}
+		else if (message.indexOf('KILL_SERVICE') === 0) {
+			handler.kill_service(socket);
+		}
+		else {
+			handler.unknown_command();
+		}
 	});
 	socket.on('close', (had_error) => {
 		delete clients[socket.key];
@@ -41,5 +57,4 @@ server.on('error', (err) => {
 // Start server to listen on a specific port
 server.listen(8000, () => {
 	logger.log('info', 'opened server on ' + util.inspect(server.address()));
-	handler.setupHandler('10.62.0.127', 8000);
 });
